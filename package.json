@@ -1,0 +1,52 @@
+{
+  "name": "note-app",
+  "productName": "Note App",
+  "version": "1.0.0",
+  "description": "本地 Markdown 笔记软件",
+  "main": ".vite/build/main.js",
+  "scripts": {
+    "dev": "electron-forge start",
+    "build": "electron-forge make",
+    "package": "electron-forge package",
+    "lint": "eslint src/"
+  },
+  "keywords": [
+    "electron",
+    "markdown",
+    "note",
+    "vue3",
+    "typescript"
+  ],
+  "author": "Note App Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron-forge/cli": "^7.8.0",
+    "@electron-forge/maker-squirrel": "^7.8.0",
+    "@electron-forge/maker-zip": "^7.8.0",
+    "@electron-forge/plugin-vite": "^7.8.0",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^22.15.3",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "electron": "^35.7.5",
+    "sass": "^1.87.0",
+    "typescript": "~5.7.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.10"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-markdown": "^6.3.1",
+    "@codemirror/language": "^6.10.8",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/search": "^6.5.10",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.36.8",
+    "codemirror": "^6.0.1",
+    "element-plus": "^2.9.8",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
+    "pinia": "^3.0.2",
+    "sql.js": "^1.11.0",
+    "vue": "^3.5.13"
+  }
+}

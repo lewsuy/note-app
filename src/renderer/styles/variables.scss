@@ -1,0 +1,125 @@
+// src/renderer/styles/variables.scss
+// 设计变量 - WizNote 风格：深色侧边栏、浅色编辑器
+
+// ─── 色彩 ────────────────────────────────────────
+
+// 主色调
+$primary-color: #409EFF;
+$primary-hover: #66b1ff;
+$primary-active: #3a8ee6;
+$primary-light: rgba(64, 158, 255, 0.1);
+
+// 功能色
+$success-color: #67C23A;
+$warning-color: #E6A23C;
+$danger-color: #F56C6C;
+$info-color: #909399;
+
+// 侧边栏（深色）
+$sidebar-bg: #2b2f3a;
+$sidebar-bg-hover: #343847;
+$sidebar-bg-active: #3d4256;
+$sidebar-text: #bfcbd9;
+$sidebar-text-secondary: #8a92a0;
+
+// 内容区（浅色）
+$content-bg: #ffffff;
+$hover-bg: #f5f7fa;
+$active-bg: #ecf5ff;
+
+// 文字颜色
+$text-primary: #303133;
+$text-regular: #606266;
+$text-secondary: #909399;
+$text-tertiary: #c0c4cc;
+
+// 边框
+$border-color: #e4e7ed;
+$border-light: #ebeef5;
+
+// ─── 间距 ────────────────────────────────────────
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 24px;
+
+// ─── 字体 ────────────────────────────────────────
+
+$font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+  'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+$font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, 'Courier New', monospace;
+
+$font-size-xs: 11px;
+$font-size-sm: 12px;
+$font-size-md: 13px;
+$font-size-base: 14px;
+$font-size-lg: 16px;
+$font-size-xl: 18px;
+
+// ─── 圆角 ────────────────────────────────────────
+
+$border-radius-sm: 4px;
+$border-radius-md: 6px;
+$border-radius-lg: 8px;
+
+// ─── 过渡 ────────────────────────────────────────
+
+$transition-fast: 0.15s ease;
+$transition-normal: 0.2s ease;
+$transition-slow: 0.3s ease;
+
+// ─── 层级 ────────────────────────────────────────
+
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+
+// ─── CSS 自定义属性（供组件使用） ────────────────
+
+:root {
+  // 色彩
+  --primary-color: #{$primary-color};
+  --primary-hover: #{$primary-hover};
+  --primary-active: #{$primary-active};
+  --primary-light: #{$primary-light};
+
+  --success-color: #{$success-color};
+  --warning-color: #{$warning-color};
+  --danger-color: #{$danger-color};
+  --info-color: #{$info-color};
+
+  --sidebar-bg: #{$sidebar-bg};
+  --sidebar-bg-hover: #{$sidebar-bg-hover};
+  --sidebar-bg-active: #{$sidebar-bg-active};
+  --sidebar-text: #{$sidebar-text};
+  --sidebar-text-secondary: #{$sidebar-text-secondary};
+
+  --content-bg: #{$content-bg};
+  --hover-bg: #{$hover-bg};
+  --active-bg: #{$active-bg};
+
+  --text-primary: #{$text-primary};
+  --text-regular: #{$text-regular};
+  --text-secondary: #{$text-secondary};
+  --text-tertiary: #{$text-tertiary};
+
+  --border-color: #{$border-color};
+  --border-light: #{$border-light};
+
+  // 字体
+  --font-family: #{$font-family};
+  --font-family-mono: #{$font-family-mono};
+
+  // 间距
+  --spacing-xs: #{$spacing-xs};
+  --spacing-sm: #{$spacing-sm};
+  --spacing-md: #{$spacing-md};
+  --spacing-lg: #{$spacing-lg};
+  --spacing-xl: #{$spacing-xl};
+}
