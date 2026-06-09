@@ -1,7 +1,7 @@
 // src/renderer/styles/global.scss
 // 全局样式：reset、布局、滚动条、基础排版
 
-@import './variables';
+@use './variables' as *;
 
 // ─── Reset ────────────────────────────────────────
 
