@@ -27,10 +27,13 @@
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.15.3",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/test-utils": "^2.4.11",
     "electron": "^35.7.5",
+    "jsdom": "^29.1.1",
     "sass": "^1.87.0",
     "typescript": "~5.7.3",
     "vite": "^6.3.5",
+    "vitest": "^4.1.8",
     "vue-tsc": "^2.2.10"
   },
   "dependencies": {
