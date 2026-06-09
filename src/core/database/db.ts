@@ -156,7 +156,12 @@ function ensureDataDirs(dataDir: string): void {
 export async function initDb(): Promise<SqlJsWrapper> {
   if (db) return db;
 
-  const SQL = await initSqlJs();
+  // locateFile ensures sql.js can find its WASM binary at runtime,
+  // especially important in packaged Electron apps where __dirname
+  // points to the .vite/build/ directory alongside the WASM file.
+  const SQL = await initSqlJs({
+    locateFile: (file: string) => path.join(__dirname, file),
+  });
   const dataDir = getDataDir();
   ensureDataDirs(dataDir);
   const dbPath = path.join(dataDir, DB_FILENAME);
