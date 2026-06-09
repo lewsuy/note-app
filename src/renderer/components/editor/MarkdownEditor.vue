@@ -1,5 +1,8 @@
 <template>
-  <div ref="editorContainer" class="markdown-editor"></div>
+  <div class="editor-wrapper">
+    <EditorToolbar @action="handleToolbarAction" />
+    <div ref="editorContainer" class="markdown-editor"></div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -11,6 +14,8 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInput } from '@codemirror/language';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+import EditorToolbar from './EditorToolbar.vue';
+import type { ToolbarAction } from './EditorToolbar.vue';
 
 const props = defineProps<{
   modelValue: string;
@@ -121,6 +126,94 @@ function createEditor(content: string): EditorView {
   });
 }
 
+// ─── 工具栏操作 ───────────────────────────────────
+
+/** 根据工具栏动作插入对应 Markdown 语法 */
+function handleToolbarAction(action: ToolbarAction) {
+  const view = editorView.value;
+  if (!view) return;
+
+  const { from, to } = view.state.selection.main;
+  const selected = view.state.sliceDoc(from, to);
+
+  let insert = '';
+  let cursorOffset = 0; // 光标相对插入文本起始位置的偏移
+
+  switch (action) {
+    case 'bold':
+      insert = `**${selected || '粗体文本'}**`;
+      cursorOffset = selected ? insert.length : 2;
+      break;
+    case 'italic':
+      insert = `*${selected || '斜体文本'}*`;
+      cursorOffset = selected ? insert.length : 1;
+      break;
+    case 'h1':
+      insert = `# ${selected || '标题'}`;
+      cursorOffset = selected ? insert.length : 2;
+      break;
+    case 'h2':
+      insert = `## ${selected || '标题'}`;
+      cursorOffset = selected ? insert.length : 3;
+      break;
+    case 'h3':
+      insert = `### ${selected || '标题'}`;
+      cursorOffset = selected ? insert.length : 4;
+      break;
+    case 'code':
+      if (selected.includes('\n')) {
+        insert = `\`\`\`\n${selected}\n\`\`\``;
+        cursorOffset = 4;
+      } else {
+        insert = `\`\`${selected || '代码'}\`\``;
+        cursorOffset = selected ? insert.length : 2;
+      }
+      break;
+    case 'link':
+      insert = `[${selected || '链接文本'}](url)`;
+      cursorOffset = selected ? insert.length - 4 : 1;
+      break;
+    case 'image':
+      insert = `![${selected || '图片描述'}](url)`;
+      cursorOffset = selected ? insert.length - 4 : 2;
+      break;
+    case 'ul':
+      insert = `- ${selected || '列表项'}`;
+      cursorOffset = selected ? insert.length : 2;
+      break;
+    case 'ol':
+      insert = `1. ${selected || '列表项'}`;
+      cursorOffset = selected ? insert.length : 3;
+      break;
+    case 'task':
+      insert = `- [ ] ${selected || '任务'}`;
+      cursorOffset = selected ? insert.length : 6;
+      break;
+    case 'table':
+      insert = '| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |';
+      cursorOffset = 2;
+      break;
+    case 'hr':
+      insert = '\n---\n';
+      cursorOffset = insert.length;
+      break;
+  }
+
+  // 如果光标在行首且插入的是 block 元素，先检查是否需要换行
+  const line = view.state.doc.lineAt(from);
+  const textBefore = view.state.sliceDoc(line.from, from);
+  if (['h1', 'h2', 'h3'].includes(action) && textBefore.trim().length > 0) {
+    insert = '\n' + insert;
+    cursorOffset += 1;
+  }
+
+  view.dispatch({
+    changes: { from, to, insert },
+    selection: { anchor: from + cursorOffset },
+  });
+  view.focus();
+}
+
 // ─── 生命周期 ─────────────────────────────────────
 
 onMounted(() => {
@@ -151,11 +244,24 @@ watch(
     }
   }
 );
+
+// ─── 暴露方法供外部调用 ───────────────────────────
+
+/** 获取编辑器实例（供快捷键 composable 等使用） */
+defineExpose({
+  getEditorView: () => editorView.value,
+});
 </script>
 
 <style lang="scss" scoped>
-.markdown-editor {
+.editor-wrapper {
+  display: flex;
+  flex-direction: column;
   height: 100%;
+}
+
+.markdown-editor {
+  flex: 1;
   overflow: hidden;
 
   :deep(.cm-editor) {

@@ -29,10 +29,15 @@
       class="context-menu"
       :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
     >
+      <div class="context-menu-item" @click="handleNewNoteInFolder">
+        <el-icon><EditPen /></el-icon>
+        <span>新建笔记</span>
+      </div>
       <div class="context-menu-item" @click="handleCreateSubfolder">
         <el-icon><FolderAdd /></el-icon>
         <span>新建子目录</span>
       </div>
+      <div class="context-menu-divider"></div>
       <div class="context-menu-item" @click="handleRename">
         <el-icon><Edit /></el-icon>
         <span>重命名</span>
@@ -54,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue';
-import { FolderAdd, Edit, Delete } from '@element-plus/icons-vue';
+import { FolderAdd, Edit, Delete, EditPen } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import type { ElTree } from 'element-plus';
 import type { FolderTreeNode } from '../../../shared/types';
@@ -100,6 +105,25 @@ function handleContextMenu(event: MouseEvent, data: FolderTreeNode) {
 /** 关闭右键菜单 */
 function closeContextMenu() {
   contextMenu.visible = false;
+}
+
+/** 在指定目录下新建笔记 */
+async function handleNewNoteInFolder() {
+  closeContextMenu();
+  const folderId = contextMenu.nodeId;
+  try {
+    const note = await noteStore.createNote({
+      title: '新笔记',
+      folderId,
+      content: '',
+    });
+    if (note) {
+      await noteStore.loadById(note.id);
+      ElMessage.success('笔记已创建');
+    }
+  } catch {
+    ElMessage.error('创建笔记失败');
+  }
 }
 
 /** 创建子目录 */
@@ -275,6 +299,12 @@ onBeforeUnmount(() => {
       background: rgba(245, 108, 108, 0.08);
     }
   }
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 0;
 }
 
 .context-menu-overlay {

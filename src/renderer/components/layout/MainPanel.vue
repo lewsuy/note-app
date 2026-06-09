@@ -10,8 +10,9 @@
       </div>
       <div class="toolbar-center">
         <el-input
+          ref="searchInputRef"
           v-model="searchKeyword"
-          placeholder="搜索笔记... (Ctrl+K)"
+          placeholder="搜索笔记... (Ctrl+F)"
           size="small"
           clearable
           @keyup.enter="handleSearch"
@@ -23,6 +24,11 @@
         </el-input>
       </div>
       <div class="toolbar-right">
+        <el-tooltip content="导入 .md 文件" placement="bottom" :show-after="500">
+          <el-button size="small" text @click="handleImportFiles">
+            <el-icon><Upload /></el-icon>
+          </el-button>
+        </el-tooltip>
         <el-button-group size="small">
           <el-button
             :type="viewMode === 'edit' ? 'primary' : 'default'"
@@ -51,6 +57,7 @@
             class="note-item"
             :class="{ active: currentNoteId === note.id }"
             @click="handleSelectNote(note.id)"
+            @contextmenu="onNoteContextMenu($event, note.id)"
           >
             <div class="note-title">{{ note.title }}</div>
             <div class="note-tags" v-if="note.tags && note.tags.length > 0">
@@ -82,6 +89,11 @@
             placeholder="笔记标题"
             @blur="handleTitleBlur"
           />
+          <el-tooltip content="导出为 .md 文件" placement="bottom" :show-after="500">
+            <el-button size="small" text @click="handleExportNote">
+              <el-icon><Download /></el-icon>
+            </el-button>
+          </el-tooltip>
           <el-button size="small" text type="danger" @click="handleDeleteNote">
             <el-icon><Delete /></el-icon>
           </el-button>
@@ -132,19 +144,41 @@
         </div>
       </div>
     </div>
+
+    <!-- 笔记右键菜单 -->
+    <NoteContextMenu ref="noteContextMenuRef" @action="handleNoteContextAction" />
+
+    <!-- 移动笔记对话框 -->
+    <el-dialog v-model="moveDialogVisible" title="移动笔记到目录" width="360px">
+      <el-tree
+        :data="folderStore.tree"
+        :props="{ children: 'children', label: 'name' }"
+        node-key="id"
+        highlight-current
+        default-expand-all
+        @node-click="handleMoveTargetSelect"
+      />
+      <template #footer>
+        <el-button @click="moveDialogVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!moveTargetFolderId" @click="confirmMoveNote">确定移动</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { EditPen, Search, Delete } from '@element-plus/icons-vue';
+import { EditPen, Search, Delete, Upload, Download } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import MarkdownEditor from '../editor/MarkdownEditor.vue';
 import TagInput from '../tags/TagInput.vue';
+import NoteContextMenu from '../editor/NoteContextMenu.vue';
+import type { NoteContextAction } from '../editor/NoteContextMenu.vue';
 import { useNoteStore } from '../../stores/note-store';
 import { useFolderStore } from '../../stores/folder-store';
 import { useUiStore } from '../../stores/ui-store';
 import { useTagStore } from '../../stores/tag-store';
+import { useKeyboard } from '../../composables/use-keyboard';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import markdownItMark from 'markdown-it-mark';
@@ -156,6 +190,7 @@ const uiStore = useUiStore();
 const tagStore = useTagStore();
 
 const searchKeyword = ref('');
+const searchInputRef = ref();
 const noteTitle = ref('');
 const editorContent = ref('');
 const isSaving = ref(false);
@@ -165,7 +200,82 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 const viewMode = computed(() => uiStore.viewMode);
 const currentNoteId = computed(() => noteStore.currentNote?.id ?? '');
 
-// Markdown 渲染器 - 支持表格、任务列表、高亮等
+// ─── 笔记右键菜单 ────────────────────────────────
+
+const noteContextMenuRef = ref<InstanceType<typeof NoteContextMenu>>();
+const moveDialogVisible = ref(false);
+const moveTargetFolderId = ref<string | null>(null);
+const moveSourceNoteId = ref('');
+
+function onNoteContextMenu(event: MouseEvent, noteId: string) {
+  noteContextMenuRef.value?.open(event, noteId);
+}
+
+async function handleNoteContextAction(action: NoteContextAction, noteId: string) {
+  switch (action) {
+    case 'open':
+      await noteStore.loadById(noteId);
+      break;
+    case 'delete':
+      await deleteNoteById(noteId);
+      break;
+    case 'move':
+      moveSourceNoteId.value = noteId;
+      moveTargetFolderId.value = null;
+      moveDialogVisible.value = true;
+      break;
+    case 'export':
+      await exportNoteById(noteId);
+      break;
+  }
+}
+
+function handleMoveTargetSelect(data: any) {
+  moveTargetFolderId.value = data.id;
+}
+
+async function confirmMoveNote() {
+  if (!moveTargetFolderId.value || !moveSourceNoteId.value) return;
+  try {
+    await noteStore.moveNotes([moveSourceNoteId.value], moveTargetFolderId.value);
+    ElMessage.success('笔记已移动');
+  } catch {
+    ElMessage.error('移动笔记失败');
+  }
+  moveDialogVisible.value = false;
+}
+
+async function deleteNoteById(id: string) {
+  const note = noteStore.notes.find((n: any) => n.id === id);
+  const title = note?.title || '该笔记';
+  try {
+    await ElMessageBox.confirm(`确定要删除"${title}"吗？`, '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+    await noteStore.deleteNote(id);
+    ElMessage.success('笔记已删除');
+  } catch {
+    // 用户取消
+  }
+}
+
+async function exportNoteById(noteId: string) {
+  const note = noteStore.notes.find((n: any) => n.id === noteId);
+  const title = note?.title || '笔记';
+  try {
+    const result = await window.api.io.exportNoteDialog(noteId, title);
+    if (result) {
+      ElMessage.success('导出成功');
+    }
+  } catch {
+    ElMessage.error('导出失败');
+  }
+}
+
+// ─── Markdown 渲染器 ─────────────────────────────
+
 const md = new MarkdownIt({
   html: false,
   linkify: true,
@@ -180,19 +290,15 @@ const md = new MarkdownIt({
   },
 });
 
-// 启用表格支持（markdown-it 默认支持）
 md.enable('table');
-// 启用任务列表支持
 md.enable('list');
 
-// 添加任务列表渲染支持
 const defaultRender = md.renderer.rules.list_item_open || function(tokens, idx, options, env, self) {
   return self.renderToken(tokens, idx, options);
 };
 
 md.renderer.rules.list_item_open = function (tokens, idx, options, env, self) {
   const token = tokens[idx];
-  // 检查下一个 token 是否包含 checkbox
   const nextToken = tokens[idx + 1];
   if (nextToken && nextToken.children && nextToken.children.length > 0) {
     const firstChild = nextToken.children[0];
@@ -203,7 +309,6 @@ md.renderer.rules.list_item_open = function (tokens, idx, options, env, self) {
   return defaultRender(tokens, idx, options, env, self);
 };
 
-// 自定义 fence 渲染器添加行号
 const defaultFence = md.renderer.rules.fence
   ? md.renderer.rules.fence.bind(md.renderer.rules)
   : function(tokens: any, idx: any, options: any, env: any, self: any) {
@@ -223,7 +328,8 @@ const renderedHtml = computed(() => {
   return md.render(editorContent.value);
 });
 
-// 监听当前笔记变化
+// ─── 监听当前笔记变化 ─────────────────────────────
+
 watch(() => noteStore.currentNote, (note) => {
   if (note) {
     noteTitle.value = note.title;
@@ -288,17 +394,7 @@ function handleContentChange(content: string) {
 
 async function handleDeleteNote() {
   if (!noteStore.currentNote) return;
-  try {
-    await ElMessageBox.confirm('确定要删除这篇笔记吗？', '删除确认', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    });
-    await noteStore.deleteNote(noteStore.currentNote.id);
-    ElMessage.success('笔记已删除');
-  } catch {
-    // 用户取消
-  }
+  await deleteNoteById(noteStore.currentNote.id);
 }
 
 async function handleSearch() {
@@ -322,7 +418,6 @@ async function handleSearch() {
 }
 
 function handleClearSearch() {
-  // 恢复当前目录的笔记列表
   if (folderStore.currentFolderId) {
     noteStore.loadByFolder(folderStore.currentFolderId);
   }
@@ -334,6 +429,30 @@ function handleTagsChanged() {
     noteStore.loadByFolder(folderStore.currentFolderId);
   }
   tagStore.loadTags();
+}
+
+// ─── 导入导出 ─────────────────────────────────────
+
+async function handleImportFiles() {
+  const folderId = folderStore.currentFolderId || folderStore.tree[0]?.id;
+  if (!folderId) {
+    ElMessage.warning('请先选择一个目录');
+    return;
+  }
+  try {
+    const result = await window.api.io.importFilesDialog(folderId);
+    if (result) {
+      ElMessage.success(`成功导入 ${Array.isArray(result) ? result.length : 1} 个文件`);
+      await noteStore.loadByFolder(folderId);
+    }
+  } catch {
+    ElMessage.error('导入失败');
+  }
+}
+
+async function handleExportNote() {
+  if (!noteStore.currentNote) return;
+  await exportNoteById(noteStore.currentNote.id);
 }
 
 // ─── 分栏拖拽 ────────────────────────────────────
@@ -360,6 +479,47 @@ function onSplitResizeStart(e: MouseEvent) {
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
 }
+
+// ─── 保存当前笔记（供快捷键调用） ────────────────
+
+async function handleSaveNow() {
+  if (!noteStore.currentNote) return;
+  if (saveTimer) clearTimeout(saveTimer);
+  isSaving.value = true;
+  await noteStore.updateNote(noteStore.currentNote.id, { content: editorContent.value });
+  isSaving.value = false;
+}
+
+// ─── 键盘快捷键 ──────────────────────────────────
+
+useKeyboard({
+  onNewNote: handleNewNote,
+  onSave: handleSaveNow,
+  onFocusSearch: () => {
+    searchInputRef.value?.focus();
+  },
+  onNewFolder: async () => {
+    try {
+      const { value } = await ElMessageBox.prompt('请输入目录名称', '新建目录', {
+        confirmButtonText: '创建',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '目录名称不能为空',
+      });
+      await folderStore.createFolder({ name: value });
+    } catch {
+      // 用户取消
+    }
+  },
+  onDeleteNote: handleDeleteNote,
+  onToggleEditPreview: () => {
+    const current = uiStore.viewMode;
+    uiStore.setViewMode(current === 'edit' ? 'preview' : 'edit');
+  },
+  onToggleSplit: () => {
+    uiStore.setViewMode(uiStore.viewMode === 'split' ? 'edit' : 'split');
+  },
+});
 </script>
 
 <style lang="scss" scoped>
@@ -382,6 +542,12 @@ function onSplitResizeStart(e: MouseEvent) {
 .toolbar-left,
 .toolbar-right {
   flex-shrink: 0;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .toolbar-center {

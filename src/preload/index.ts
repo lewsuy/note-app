@@ -89,17 +89,56 @@ const api = {
 
   // 导入导出
   io: {
-    importFile: (filePath: string, folderId: string) =>
-      ipcRenderer.invoke(IPC_CHANNELS.IMPORT_FILES, filePath, folderId),
+    /** 导入单个或多个 .md 文件到指定目录 */
+    importFiles: (filePaths: string[], folderId: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.IMPORT_FILES, filePaths, folderId),
+    /** 通过对话框选择文件并导入 */
+    importFilesDialog: async (folderId: string) => {
+      const windowId = await ipcRenderer.invoke(IPC_CHANNELS.APP_OPEN_FILE, {
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+      });
+      if (!windowId) return null;
+      return ipcRenderer.invoke(IPC_CHANNELS.IMPORT_FILES, windowId, folderId);
+    },
 
-    importFolder: (folderPath: string, folderId: string) =>
+    /** 导入文件夹下所有 .md 文件 */
+    importFolder: (folderPath: string, folderId: string): Promise<{ success: boolean; count: number }> =>
       ipcRenderer.invoke(IPC_CHANNELS.IMPORT_FOLDER, folderPath, folderId),
+    /** 通过对话框选择文件夹并导入 */
+    importFolderDialog: async (folderId: string) => {
+      const folderPaths = await ipcRenderer.invoke(IPC_CHANNELS.APP_OPEN_FILE, {
+        properties: ['openDirectory'],
+      });
+      if (!folderPaths || folderPaths.length === 0) return null;
+      return ipcRenderer.invoke(IPC_CHANNELS.IMPORT_FOLDER, folderPaths[0], folderId);
+    },
 
-    exportNote: (noteId: string, targetPath: string, options?: { includeFrontMatter?: boolean }) =>
+    /** 导出单个笔记为 .md 文件 */
+    exportNote: (noteId: string, targetPath: string, options?: { includeFrontMatter?: boolean }): Promise<{ success: boolean; filePath: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.EXPORT_NOTE, noteId, targetPath, options),
+    /** 通过对话框选择路径导出笔记 */
+    exportNoteDialog: async (noteId: string, noteTitle: string, options?: { includeFrontMatter?: boolean }) => {
+      const savePath = await ipcRenderer.invoke(IPC_CHANNELS.APP_SAVE_FILE, {
+        defaultPath: `${noteTitle}.md`,
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
+      });
+      if (!savePath) return null;
+      return ipcRenderer.invoke(IPC_CHANNELS.EXPORT_NOTE, noteId, savePath, options);
+    },
 
-    exportFolder: (folderId: string, targetPath: string, options?: { includeFrontMatter?: boolean }) =>
+    /** 导出目录下所有笔记 */
+    exportFolder: (folderId: string, targetPath: string, options?: { includeFrontMatter?: boolean }): Promise<{ success: boolean; count: number }> =>
       ipcRenderer.invoke(IPC_CHANNELS.EXPORT_FOLDER, folderId, targetPath, options),
+
+    /** 通过对话框选择文件夹导出 */
+    exportFolderDialog: async (folderId: string, options?: { includeFrontMatter?: boolean }) => {
+      const folderPaths = await ipcRenderer.invoke(IPC_CHANNELS.APP_OPEN_FILE, {
+        properties: ['openDirectory'],
+      });
+      if (!folderPaths || folderPaths.length === 0) return null;
+      return ipcRenderer.invoke(IPC_CHANNELS.EXPORT_FOLDER, folderId, folderPaths[0], options);
+    },
   },
 
   // 应用设置

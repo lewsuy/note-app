@@ -16,6 +16,8 @@ import {
   UpdateTagParams,
   GetNotesOptions,
 } from '../shared/types';
+import { importExportService } from '../core/services/import-export-service';
+import path from 'path';
 
 /**
  * 注册所有 IPC 通道处理
@@ -231,6 +233,52 @@ export function registerIpcHandlers(): void {
       return tagRepository.getTagsByNote(noteId);
     } catch (err) {
       console.error('[IPC] 获取笔记标签失败:', err);
+      throw err;
+    }
+  });
+
+  // ========== 导入导出 ==========
+
+  ipcMain.handle(IPC_CHANNELS.IMPORT_FILES, async (_event, filePaths: string[], folderId: string) => {
+    try {
+      const results: any[] = [];
+      for (const filePath of filePaths) {
+        const note = importExportService.importFile(filePath, folderId);
+        results.push(note);
+      }
+      return { success: true, count: results.length, notes: results };
+    } catch (err) {
+      console.error('[IPC] 导入文件失败:', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.IMPORT_FOLDER, async (_event, folderPath: string, folderId: string) => {
+    try {
+      const count = importExportService.importFolder(folderPath, folderId);
+      return { success: true, count };
+    } catch (err) {
+      console.error('[IPC] 导入文件夹失败:', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.EXPORT_NOTE, async (_event, noteId: string, outputPath: string, options?: { includeFrontMatter?: boolean }) => {
+    try {
+      const result = importExportService.exportNote(noteId, outputPath, options);
+      return { success: true, filePath: result };
+    } catch (err) {
+      console.error('[IPC] 导出笔记失败:', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.EXPORT_FOLDER, async (_event, folderId: string, outputPath: string, options?: { includeFrontMatter?: boolean }) => {
+    try {
+      const count = importExportService.exportFolder(folderId, outputPath, options);
+      return { success: true, count };
+    } catch (err) {
+      console.error('[IPC] 导出目录失败:', err);
       throw err;
     }
   });

@@ -8,9 +8,21 @@
     <div class="folder-section">
       <div class="section-header">
         <span>目录</span>
-        <el-button size="small" text @click="handleCreateFolder">
-          <el-icon><Plus /></el-icon>
-        </el-button>
+        <div class="section-actions">
+          <el-tooltip content="导入 .md 文件" placement="bottom" :show-after="500">
+            <el-button size="small" text @click="handleImportFiles">
+              <el-icon><Upload /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="导入文件夹" placement="bottom" :show-after="500">
+            <el-button size="small" text @click="handleImportFolder">
+              <el-icon><FolderOpened /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-button size="small" text @click="handleCreateFolder">
+            <el-icon><Plus /></el-icon>
+          </el-button>
+        </div>
       </div>
       <FolderTree />
     </div>
@@ -23,13 +35,15 @@
 </template>
 
 <script setup lang="ts">
-import { Plus } from '@element-plus/icons-vue';
+import { Plus, Upload, FolderOpened } from '@element-plus/icons-vue';
 import FolderTree from '../tree/FolderTree.vue';
 import TagPanel from '../tags/TagPanel.vue';
 import { useFolderStore } from '../../stores/folder-store';
-import { ElMessageBox } from 'element-plus';
+import { useNoteStore } from '../../stores/note-store';
+import { ElMessageBox, ElMessage } from 'element-plus';
 
 const folderStore = useFolderStore();
+const noteStore = useNoteStore();
 
 async function handleCreateFolder() {
   try {
@@ -42,6 +56,40 @@ async function handleCreateFolder() {
     await folderStore.createFolder({ name: value });
   } catch {
     // 用户取消
+  }
+}
+
+async function handleImportFiles() {
+  const folderId = folderStore.currentFolderId || folderStore.tree[0]?.id;
+  if (!folderId) {
+    ElMessage.warning('请先选择一个目录');
+    return;
+  }
+  try {
+    const result = await window.api.io.importFilesDialog(folderId);
+    if (result) {
+      ElMessage.success(`成功导入 ${Array.isArray(result) ? result.length : 1} 个文件`);
+      await noteStore.loadByFolder(folderId);
+    }
+  } catch {
+    ElMessage.error('导入失败');
+  }
+}
+
+async function handleImportFolder() {
+  const folderId = folderStore.currentFolderId || folderStore.tree[0]?.id;
+  if (!folderId) {
+    ElMessage.warning('请先选择一个目录');
+    return;
+  }
+  try {
+    const result = await window.api.io.importFolderDialog(folderId);
+    if (result) {
+      ElMessage.success(`成功导入 ${result.count} 个文件`);
+      await noteStore.loadByFolder(folderId);
+    }
+  } catch {
+    ElMessage.error('导入文件夹失败');
   }
 }
 </script>
@@ -81,6 +129,12 @@ async function handleCreateFolder() {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .tag-section {

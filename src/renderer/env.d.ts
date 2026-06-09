@@ -42,10 +42,14 @@ interface ElectronAPI {
     removeTag: (noteId: string, tagId: string) => Promise<any>;
   };
   io: {
-    importFile: (filePath: string, folderId: string) => Promise<any>;
+    importFiles: (filePaths: string[], folderId: string) => Promise<any>;
+    importFilesDialog: (folderId: string) => Promise<any>;
     importFolder: (folderPath: string, folderId: string) => Promise<any>;
+    importFolderDialog: (folderId: string) => Promise<any>;
     exportNote: (noteId: string, targetPath: string, options?: any) => Promise<any>;
+    exportNoteDialog: (noteId: string, noteTitle: string, options?: any) => Promise<any>;
     exportFolder: (folderId: string, targetPath: string, options?: any) => Promise<any>;
+    exportFolderDialog: (folderId: string, options?: any) => Promise<any>;
   };
   settings: {
     get: (key?: string) => Promise<any>;
