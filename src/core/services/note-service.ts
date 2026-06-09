@@ -3,6 +3,7 @@
 
 import { noteRepository } from '../database/repositories/note-repository';
 import { tagRepository } from '../database/repositories/tag-repository';
+import { searchService } from './search-service';
 import {
   Note,
   NoteDetail,
@@ -13,7 +14,6 @@ import {
   SearchOptions,
   SearchResult,
 } from '../../shared/types';
-import { getDb } from '../database/db';
 
 /**
  * 笔记服务
@@ -82,37 +82,9 @@ export const noteService = {
   },
 
   /**
-   * 全文搜索笔记
+   * 全文搜索笔记（委托给 searchService）
    */
   search(keyword: string, options?: SearchOptions): SearchResult[] {
-    const db = getDb();
-    const limit = options?.limit || 50;
-
-    let sql = `
-      SELECT n.id as noteId, n.title, n.folder_id,
-             SUBSTR(n.title, 1, 200) as snippet,
-             1 as matchCount
-      FROM notes n
-      WHERE n.title LIKE ?
-    `;
-    const params: any[] = [`%${keyword}%`];
-
-    if (options?.folderId) {
-      sql += ' AND n.folder_id = ?';
-      params.push(options.folderId);
-    }
-
-    sql += ' ORDER BY n.updated_at DESC LIMIT ?';
-    params.push(limit);
-
-    const rows = db.prepare(sql).all(...params) as any[];
-
-    return rows.map(row => ({
-      noteId: row.noteId,
-      title: row.title,
-      snippet: row.snippet,
-      matchCount: row.matchCount,
-      folderPath: row.folder_id,
-    }));
+    return searchService.search(keyword, options);
   },
 };

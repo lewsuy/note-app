@@ -1,0 +1,404 @@
+// src/renderer/styles/markdown-theme.scss
+// Markdown 预览主题样式 - 支持表格、任务列表、代码高亮等
+
+.markdown-preview {
+  // ─── 标题 ────────────────────────────────────────
+  h1, h2, h3, h4, h5, h6 {
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--text-primary);
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  h1 {
+    font-size: 1.8em;
+    padding-bottom: 0.3em;
+    border-bottom: 2px solid var(--border-color);
+  }
+
+  h2 {
+    font-size: 1.5em;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  h3 { font-size: 1.25em; }
+  h4 { font-size: 1.1em; }
+  h5 { font-size: 1em; }
+  h6 { font-size: 0.9em; color: var(--text-secondary); }
+
+  // ─── 段落和文字 ──────────────────────────────────
+  p {
+    margin-bottom: 0.8em;
+    line-height: 1.8;
+  }
+
+  strong {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  del {
+    text-decoration: line-through;
+    color: var(--text-secondary);
+  }
+
+  // ─── 链接 ────────────────────────────────────────
+  a {
+    color: var(--primary-color);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+
+    &:hover {
+      border-bottom-color: var(--primary-color);
+    }
+  }
+
+  // ─── 图片 ────────────────────────────────────────
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    margin: 0.5em 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  // ─── 列表 ────────────────────────────────────────
+  ul, ol {
+    padding-left: 1.5em;
+    margin-bottom: 0.8em;
+  }
+
+  li {
+    margin-bottom: 0.3em;
+    line-height: 1.7;
+
+    > p {
+      margin-bottom: 0.3em;
+    }
+
+    // 嵌套列表
+    ul, ol {
+      margin-bottom: 0;
+      margin-top: 0.3em;
+    }
+  }
+
+  // 无序列表标记样式
+  ul {
+    list-style-type: disc;
+
+    ul {
+      list-style-type: circle;
+    }
+
+    ul ul {
+      list-style-type: square;
+    }
+  }
+
+  // 有序列表
+  ol {
+    list-style-type: decimal;
+
+    ol {
+      list-style-type: lower-alpha;
+    }
+  }
+
+  // ─── 任务列表 ────────────────────────────────────
+  .contains-task-list {
+    list-style: none;
+    padding-left: 0.5em;
+  }
+
+  .task-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5em;
+    margin-bottom: 0.4em;
+
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 3px;
+      margin-top: 4px;
+      flex-shrink: 0;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+
+      &:checked {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+
+        &::after {
+          content: '';
+          position: absolute;
+          left: 3px;
+          top: 0px;
+          width: 6px;
+          height: 10px;
+          border: solid white;
+          border-width: 0 2px 2px 0;
+          transform: rotate(45deg);
+        }
+      }
+    }
+
+    // 已完成的任务
+    &.checked,
+    &:has(input:checked) {
+      color: var(--text-secondary);
+      text-decoration: line-through;
+    }
+  }
+
+  // ─── 引用块 ──────────────────────────────────────
+  blockquote {
+    margin: 0.8em 0;
+    padding: 0.5em 1em;
+    border-left: 4px solid var(--primary-color);
+    background: var(--primary-light);
+    border-radius: 0 4px 4px 0;
+    color: var(--text-regular);
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    // 嵌套引用
+    blockquote {
+      border-left-color: var(--success-color);
+      background: rgba(103, 194, 58, 0.08);
+    }
+  }
+
+  // ─── 代码 ────────────────────────────────────────
+  // 行内代码
+  code {
+    font-family: var(--font-family-mono);
+    font-size: 0.88em;
+    padding: 0.15em 0.4em;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    color: #e06c75;
+  }
+
+  // 代码块
+  pre {
+    margin: 0.8em 0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #282c34;
+
+    code {
+      display: block;
+      padding: 1em 1.2em;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #abb2bf;
+      background: transparent;
+      border-radius: 0;
+    }
+  }
+
+  // ─── 表格 ────────────────────────────────────────
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.8em 0;
+    font-size: 0.95em;
+    overflow-x: auto;
+    display: block;
+  }
+
+  thead {
+    tr {
+      background: var(--hover-bg);
+    }
+  }
+
+  th, td {
+    padding: 0.6em 1em;
+    border: 1px solid var(--border-color);
+    text-align: left;
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    transition: background 0.15s;
+
+    &:hover {
+      background: rgba(64, 158, 255, 0.04);
+    }
+
+    &:nth-child(even) {
+      background: rgba(0, 0, 0, 0.02);
+    }
+  }
+
+  // ─── 分割线 ──────────────────────────────────────
+  hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(to right, var(--border-color), transparent);
+    margin: 1.5em 0;
+  }
+
+  // ─── 定义列表 ────────────────────────────────────
+  dl {
+    margin: 0.8em 0;
+  }
+
+  dt {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 0.5em;
+  }
+
+  dd {
+    margin-left: 1.5em;
+    margin-bottom: 0.5em;
+    color: var(--text-regular);
+  }
+
+  // ─── 脚注 ────────────────────────────────────────
+  sup.footnote-ref {
+    a {
+      font-size: 0.8em;
+      vertical-align: super;
+    }
+  }
+
+  .footnotes {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9em;
+    color: var(--text-secondary);
+  }
+}
+
+// ─── highlight.js 深色主题覆写 ─────────────────────
+.hljs {
+  color: #abb2bf;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #5c6370;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: #c678dd;
+}
+
+.hljs-literal,
+.hljs-number {
+  color: #d19a66;
+}
+
+.hljs-string,
+.hljs-addition {
+  color: #98c379;
+}
+
+.hljs-attr {
+  color: #d19a66;
+}
+
+.hljs-built_in {
+  color: #e6c07b;
+}
+
+.hljs-type,
+.hljs-class .hljs-title {
+  color: #e5c07b;
+}
+
+.hljs-params {
+  color: #abb2bf;
+}
+
+.hljs-meta {
+  color: #61afef;
+}
+
+.hljs-symbol,
+.hljs-bullet {
+  color: #61afef;
+}
+
+.hljs-deletion {
+  color: #e06c75;
+}
+
+.hljs-variable,
+.hljs-template-variable {
+  color: #e06c75;
+}
+
+.hljs-section,
+.hljs-title {
+  color: #e06c75;
+  font-weight: bold;
+}
+
+.hljs-link {
+  color: #61afef;
+  text-decoration: underline;
+}
+
+.hljs-regexp {
+  color: #56b6c2;
+}
+
+.hljs-addition {
+  color: #98c379;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+.hljs-property {
+  color: #e06c75;
+}
+
+.hljs-selector-class {
+  color: #d19a66;
+}
+
+.hljs-selector-id {
+  color: #61afef;
+}
+
+.hljs-function {
+  color: #61afef;
+}

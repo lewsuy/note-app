@@ -17,52 +17,19 @@
 
     <!-- 标签区域 -->
     <div class="tag-section">
-      <div class="section-header">
-        <span>标签</span>
-      </div>
-      <div class="tag-list">
-        <div
-          v-for="tag in tags"
-          :key="tag.id"
-          class="tag-item"
-          :class="{ active: activeTagId === tag.id }"
-          @click="handleTagClick(tag.id)"
-        >
-          <span class="tag-dot" :style="{ background: tag.color }"></span>
-          <span class="tag-name">{{ tag.name }}</span>
-          <span class="tag-count">{{ tag.noteCount }}</span>
-        </div>
-        <div v-if="tags.length === 0" class="empty-hint">暂无标签</div>
-      </div>
+      <TagPanel />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
 import { Plus } from '@element-plus/icons-vue';
 import FolderTree from '../tree/FolderTree.vue';
+import TagPanel from '../tags/TagPanel.vue';
 import { useFolderStore } from '../../stores/folder-store';
-import { useNoteStore } from '../../stores/note-store';
 import { ElMessageBox } from 'element-plus';
 
 const folderStore = useFolderStore();
-const noteStore = useNoteStore();
-
-const tags = ref<any[]>([]);
-const activeTagId = ref<string | null>(null);
-
-onMounted(async () => {
-  await loadTags();
-});
-
-async function loadTags() {
-  try {
-    tags.value = await window.api.tag.getAll();
-  } catch (err) {
-    console.error('加载标签失败:', err);
-  }
-}
 
 async function handleCreateFolder() {
   try {
@@ -75,16 +42,6 @@ async function handleCreateFolder() {
     await folderStore.createFolder({ name: value });
   } catch {
     // 用户取消
-  }
-}
-
-async function handleTagClick(tagId: string) {
-  activeTagId.value = tagId;
-  try {
-    const notes = await window.api.tag.getNotesByTag(tagId);
-    noteStore.notes = notes;
-  } catch (err) {
-    console.error('获取标签笔记失败:', err);
   }
 }
 </script>
@@ -114,12 +71,6 @@ async function handleTagClick(tagId: string) {
   border-bottom: 1px solid var(--border-color);
 }
 
-.tag-section {
-  flex-shrink: 0;
-  max-height: 40%;
-  overflow-y: auto;
-}
-
 .section-header {
   display: flex;
   align-items: center;
@@ -132,55 +83,9 @@ async function handleTagClick(tagId: string) {
   letter-spacing: 0.5px;
 }
 
-.tag-list {
-  padding: 0 8px 8px;
-}
-
-.tag-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.2s;
-
-  &:hover {
-    background: var(--hover-bg);
-  }
-
-  &.active {
-    background: var(--primary-light);
-    color: var(--primary-color);
-  }
-}
-
-.tag-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.tag-section {
   flex-shrink: 0;
-}
-
-.tag-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag-count {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  min-width: 20px;
-  text-align: right;
-}
-
-.empty-hint {
-  padding: 16px;
-  text-align: center;
-  color: var(--text-tertiary);
-  font-size: 12px;
+  max-height: 40%;
+  overflow-y: auto;
 }
 </style>

@@ -15,6 +15,7 @@
           size="small"
           clearable
           @keyup.enter="handleSearch"
+          @clear="handleClearSearch"
         >
           <template #prefix>
             <el-icon><Search /></el-icon>
@@ -52,6 +53,14 @@
             @click="handleSelectNote(note.id)"
           >
             <div class="note-title">{{ note.title }}</div>
+            <div class="note-tags" v-if="note.tags && note.tags.length > 0">
+              <span
+                v-for="tagName in note.tags.slice(0, 3)"
+                :key="tagName"
+                class="note-tag-chip"
+              >{{ tagName }}</span>
+              <span v-if="note.tags.length > 3" class="note-tag-more">+{{ note.tags.length - 3 }}</span>
+            </div>
             <div class="note-meta">
               <span class="note-date">{{ formatDate(note.updatedAt) }}</span>
               <span class="note-words">{{ note.wordCount }} 字</span>
@@ -78,15 +87,38 @@
           </el-button>
         </div>
 
-        <!-- 编辑/预览 -->
+        <!-- 标签输入区 -->
+        <div class="tag-bar" v-if="noteStore.currentNote">
+          <TagInput
+            :note-id="noteStore.currentNote.id"
+            :model-tags="noteStore.currentNote.tags || []"
+            @tags-changed="handleTagsChanged"
+          />
+        </div>
+
+        <!-- 编辑/预览（含可拖拽分栏） -->
         <div class="editor-body" :class="viewMode">
-          <div v-if="viewMode !== 'preview'" class="editor-pane">
+          <div
+            v-if="viewMode !== 'preview'"
+            class="editor-pane"
+            :style="viewMode === 'split' ? { width: splitPercent + '%' } : {}"
+          >
             <MarkdownEditor
               v-model="editorContent"
               @update:modelValue="handleContentChange"
             />
           </div>
-          <div v-if="viewMode !== 'edit'" class="preview-pane">
+          <!-- 分栏拖拽条 -->
+          <div
+            v-if="viewMode === 'split'"
+            class="split-resizer"
+            @mousedown="onSplitResizeStart"
+          ></div>
+          <div
+            v-if="viewMode !== 'edit'"
+            class="preview-pane"
+            :style="viewMode === 'split' ? { width: (100 - splitPercent) + '%' } : {}"
+          >
             <div class="markdown-preview" v-html="renderedHtml"></div>
           </div>
         </div>
@@ -108,26 +140,32 @@ import { ref, watch, computed } from 'vue';
 import { EditPen, Search, Delete } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import MarkdownEditor from '../editor/MarkdownEditor.vue';
+import TagInput from '../tags/TagInput.vue';
 import { useNoteStore } from '../../stores/note-store';
 import { useFolderStore } from '../../stores/folder-store';
 import { useUiStore } from '../../stores/ui-store';
+import { useTagStore } from '../../stores/tag-store';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
+import markdownItMark from 'markdown-it-mark';
+import '../../styles/markdown-theme.scss';
 
 const noteStore = useNoteStore();
 const folderStore = useFolderStore();
 const uiStore = useUiStore();
+const tagStore = useTagStore();
 
 const searchKeyword = ref('');
 const noteTitle = ref('');
 const editorContent = ref('');
 const isSaving = ref(false);
+const splitPercent = ref(50);
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const viewMode = computed(() => uiStore.viewMode);
 const currentNoteId = computed(() => noteStore.currentNote?.id ?? '');
 
-// Markdown 渲染器
+// Markdown 渲染器 - 支持表格、任务列表、高亮等
 const md = new MarkdownIt({
   html: false,
   linkify: true,
@@ -141,6 +179,45 @@ const md = new MarkdownIt({
     return '';
   },
 });
+
+// 启用表格支持（markdown-it 默认支持）
+md.enable('table');
+// 启用任务列表支持
+md.enable('list');
+
+// 添加任务列表渲染支持
+const defaultRender = md.renderer.rules.list_item_open || function(tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options);
+};
+
+md.renderer.rules.list_item_open = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  // 检查下一个 token 是否包含 checkbox
+  const nextToken = tokens[idx + 1];
+  if (nextToken && nextToken.children && nextToken.children.length > 0) {
+    const firstChild = nextToken.children[0];
+    if (firstChild && firstChild.type === 'html_inline' && firstChild.content.includes('checkbox')) {
+      token.attrSet('class', 'task-list-item');
+    }
+  }
+  return defaultRender(tokens, idx, options, env, self);
+};
+
+// 自定义 fence 渲染器添加行号
+const defaultFence = md.renderer.rules.fence
+  ? md.renderer.rules.fence.bind(md.renderer.rules)
+  : function(tokens: any, idx: any, options: any, env: any, self: any) {
+      return self.renderToken(tokens, idx, options);
+    };
+md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const info = token.info.trim();
+  const langName = info.split(/\s+/g)[0] || '';
+  if (langName) {
+    token.attrSet('class', `language-${langName}`);
+  }
+  return defaultFence(tokens, idx, options, env, self);
+};
 
 const renderedHtml = computed(() => {
   return md.render(editorContent.value);
@@ -243,6 +320,46 @@ async function handleSearch() {
     ElMessage.error('搜索失败');
   }
 }
+
+function handleClearSearch() {
+  // 恢复当前目录的笔记列表
+  if (folderStore.currentFolderId) {
+    noteStore.loadByFolder(folderStore.currentFolderId);
+  }
+}
+
+/** 标签变化后刷新笔记列表 */
+function handleTagsChanged() {
+  if (folderStore.currentFolderId) {
+    noteStore.loadByFolder(folderStore.currentFolderId);
+  }
+  tagStore.loadTags();
+}
+
+// ─── 分栏拖拽 ────────────────────────────────────
+
+function onSplitResizeStart(e: MouseEvent) {
+  e.preventDefault();
+  const editorBody = (e.target as HTMLElement).closest('.editor-body');
+  if (!editorBody) return;
+
+  const rect = editorBody.getBoundingClientRect();
+  const startX = e.clientX;
+
+  const onMove = (ev: MouseEvent) => {
+    const delta = ev.clientX - startX;
+    const percent = ((ev.clientX - rect.left) / rect.width) * 100;
+    splitPercent.value = Math.max(20, Math.min(80, percent));
+  };
+
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
 </script>
 
 <style lang="scss" scoped>
@@ -314,6 +431,27 @@ async function handleSearch() {
   white-space: nowrap;
 }
 
+.note-tags {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.note-tag-chip {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--primary-light);
+  color: var(--primary-color);
+  white-space: nowrap;
+}
+
+.note-tag-more {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
 .note-meta {
   display: flex;
   gap: 8px;
@@ -356,6 +494,12 @@ async function handleSearch() {
   }
 }
 
+.tag-bar {
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
 .editor-body {
   flex: 1;
   display: flex;
@@ -370,27 +514,52 @@ async function handleSearch() {
   }
 
   &.split {
-    .editor-pane,
-    .preview-pane {
-      flex: 1;
+    .editor-pane {
+      overflow: hidden;
     }
 
     .preview-pane {
-      border-left: 1px solid var(--border-color);
+      overflow-y: auto;
+      border-left: none;
     }
+  }
+}
+
+.split-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  position: relative;
+
+  &:hover,
+  &:active {
+    background: var(--primary-color);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 24px;
+    background: var(--text-tertiary);
+    border-radius: 1px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  &:hover::after {
+    opacity: 0.5;
   }
 }
 
 .editor-pane,
 .preview-pane {
   overflow-y: auto;
-}
-
-.markdown-preview {
-  padding: 16px;
-  font-size: 14px;
-  line-height: 1.8;
-  color: var(--text-primary);
 }
 
 .status-bar {
