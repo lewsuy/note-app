@@ -9,7 +9,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInput } from '@codemirror/language';
@@ -94,6 +94,47 @@ const updateListener = EditorView.updateListener.of((update) => {
   }
 });
 
+// ─── Enter key: auto-complete fenced code blocks ──
+
+/** When the cursor is on a line that is just ``` or ```lang, pressing Enter
+ *  should create the fenced code block structure:
+ *    ```bash
+ *    <cursor>
+ *    ```
+ */
+const fencedCodeBlockEnter: import('@codemirror/state').Extension = EditorView.domEventHandlers({
+  keydown(event, view) {
+    if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) {
+      return false;
+    }
+
+    const { head } = view.state.selection.main;
+    const line = view.state.doc.lineAt(head);
+    const lineText = line.text;
+
+    // Match a line that is exactly ``` optionally followed by a language tag
+    // Only trigger when cursor is at the very end of that line
+    const fenceMatch = lineText.match(/^```(\w*)\s*$/);
+    if (!fenceMatch || head !== line.to) {
+      return false;
+    }
+
+    const lang = fenceMatch[1];
+    const fence = lang ? '```' + lang : '```';
+
+    // Insert: newline after fence, empty line for code, closing ```, and place cursor on the empty line
+    const insertText = '\n\n```';
+    const cursorPos = head + 1; // on the empty line between the fences
+
+    view.dispatch({
+      changes: { from: head, to: head, insert: insertText },
+      selection: { anchor: cursorPos },
+    });
+
+    return true;
+  },
+});
+
 // ─── 创建编辑器 ───────────────────────────────────
 
 function createEditor(content: string): EditorView {
@@ -109,12 +150,14 @@ function createEditor(content: string): EditorView {
       bracketMatching(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       markdown({ base: markdownLanguage, codeLanguages: languages }),
+      fencedCodeBlockEnter,
       editorTheme,
       updateListener,
       keymap.of([
         ...defaultKeymap,
         ...searchKeymap,
         ...historyKeymap,
+        indentWithTab,
       ]),
       EditorView.lineWrapping,
     ],
