@@ -16,6 +16,7 @@ import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInp
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import EditorToolbar from './EditorToolbar.vue';
 import type { ToolbarAction } from './EditorToolbar.vue';
+import { codeBlockPlugin } from './code-block-plugin';
 
 const props = defineProps<{
   modelValue: string;
@@ -96,11 +97,12 @@ const updateListener = EditorView.updateListener.of((update) => {
 
 // ─── Enter key: auto-complete fenced code blocks ──
 
-/** When the cursor is on a line that is just ``` or ```lang, pressing Enter
- *  should create the fenced code block structure:
- *    ```bash
- *    <cursor>
- *    ```
+/**
+ * When the cursor is on a line that is just ``` or ```lang, pressing Enter
+ * should create the fenced code block structure:
+ *   ```bash
+ *   <cursor>
+ *   ```
  */
 const fencedCodeBlockEnter: import('@codemirror/state').Extension = EditorView.domEventHandlers({
   keydown(event, view) {
@@ -118,9 +120,6 @@ const fencedCodeBlockEnter: import('@codemirror/state').Extension = EditorView.d
     if (!fenceMatch || head !== line.to) {
       return false;
     }
-
-    const lang = fenceMatch[1];
-    const fence = lang ? '```' + lang : '```';
 
     // Insert: newline after fence, empty line for code, closing ```, and place cursor on the empty line
     const insertText = '\n\n```';
@@ -151,6 +150,7 @@ function createEditor(content: string): EditorView {
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       fencedCodeBlockEnter,
+      codeBlockPlugin(),
       editorTheme,
       updateListener,
       keymap.of([
@@ -332,5 +332,248 @@ defineExpose({
   :deep(.cm-editor) {
     height: 100%;
   }
+}
+</style>
+
+<style lang="scss">
+// ─── Code Block Styles (global, not scoped) ──────────
+
+// Code block lines - dark theme background
+.cm-line:has(.cm-code-block-start),
+.cm-line:has(.cm-code-block-line),
+.cm-line:has(.cm-code-block-end) {
+  background: #1e1e2e !important;
+  color: #cdd6f4;
+  padding-left: 0 !important;
+  position: relative;
+
+  // Counter for line numbers
+  counter-increment: cm-code-line;
+}
+
+// Opening fence line
+.cm-line:has(.cm-code-block-start) {
+  border-radius: 8px 8px 0 0;
+  padding-top: 2px;
+  counter-reset: cm-code-line;
+  counter-increment: none;
+  padding-left: 16px !important;
+}
+
+// Closing fence line
+.cm-line:has(.cm-code-block-end) {
+  border-radius: 0 0 8px 8px;
+  padding-bottom: 2px;
+  counter-increment: none;
+  padding-left: 16px !important;
+}
+
+// Code content lines - add line numbers
+.cm-line:has(.cm-code-block-line) {
+  padding-left: 52px !important;
+  position: relative;
+
+  &::before {
+    content: counter(cm-code-line);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 40px;
+    padding-right: 8px;
+    text-align: right;
+    color: #585b70;
+    font-size: 12px;
+    line-height: inherit;
+    user-select: none;
+    pointer-events: none;
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, 'Courier New', monospace;
+  }
+}
+
+// ─── Toolbar ──────────────────────────────────────
+
+.cm-code-block-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: #181825;
+  border-radius: 8px 8px 0 0;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  position: relative;
+  z-index: 10;
+  min-height: 32px;
+}
+
+// Show toolbar on hover of code block area
+.cm-line:has(.cm-code-block-start):hover + .cm-widgetElement + .cm-line,
+.cm-line:has(.cm-code-block-line):hover ~ .cm-line,
+.cm-line:has(.cm-code-block-end):hover ~ .cm-line {
+  // This doesn't work well. Let's use a different approach.
+}
+
+// Better approach: Use container hover detection
+// When any code block line is hovered, show the toolbar
+.cm-line:has(.cm-code-block-start):hover,
+.cm-line:has(.cm-code-block-line):hover,
+.cm-line:has(.cm-code-block-end):hover {
+  // Find sibling toolbar
+  & ~ .cm-widgetElement .cm-code-block-toolbar,
+  & + .cm-widgetElement .cm-code-block-toolbar {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+// Actually, the toolbar is BEFORE the code block lines, so we need :has()
+// The toolbar is a .cm-widgetElement before the .cm-code-block-start line
+// We need: .cm-widgetElement:has(.cm-code-block-toolbar) when sibling .cm-line is hovered
+
+// Use :has() to detect hover on any sibling code block line
+:is(.cm-line:has(.cm-code-block-start), .cm-line:has(.cm-code-block-line), .cm-line:has(.cm-code-block-end)):hover ~ * .cm-code-block-toolbar {
+  // This won't work because toolbar is BEFORE the lines
+}
+
+// Let's use a completely different approach - wrap in a container
+// The plugin will handle the DOM wrapping, and we use the parent container's hover
+
+// For now, use a JS-based hover approach
+// The toolbar visibility is toggled via a data attribute
+
+// Language label
+.cb-lang-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  background: #313244;
+  border-radius: 4px;
+  color: #cdd6f4;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+  user-select: none;
+
+  &:hover {
+    background: #45475a;
+  }
+}
+
+.cb-lang-arrow {
+  font-size: 10px;
+  color: #6c7086;
+  margin-left: 2px;
+}
+
+// Language dropdown
+.cb-lang-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: #1e1e2e;
+  border: 1px solid #313244;
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 140px;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  // Scrollbar
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #45475a;
+    border-radius: 2px;
+  }
+}
+
+.cb-lang-item {
+  padding: 6px 12px;
+  color: #cdd6f4;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.1s;
+
+  &:hover {
+    background: #313244;
+  }
+
+  &.cb-lang-item-active {
+    color: #89b4fa;
+    font-weight: 500;
+  }
+}
+
+// Copy button
+.cb-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: #313244;
+  border-radius: 4px;
+  color: #cdd6f4;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s;
+  user-select: none;
+
+  &:hover {
+    background: #45475a;
+  }
+
+  &:active {
+    background: #585b70;
+  }
+}
+
+// Toast notification
+.cb-toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1e1e2e;
+  color: #a6e3a1;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 10000;
+  pointer-events: none;
+
+  &.cb-toast-show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+// Syntax highlighting overrides for code blocks
+.cm-line:has(.cm-code-block-line) {
+  .cm-keyword { color: #cba6f7; }
+  .cm-string { color: #a6e3a1; }
+  .cm-number { color: #fab387; }
+  .cm-comment { color: #6c7086; font-style: italic; }
+  .cm-variable { color: #f38ba8; }
+  .cm-property { color: #89b4fa; }
+  .cm-def { color: #89dceb; }
+  .cm-operator { color: #94e2d5; }
+  .cm-atom { color: #fab387; }
 }
 </style>
