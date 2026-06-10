@@ -1,6 +1,6 @@
 <template>
   <div class="editor-wrapper">
-    <EditorToolbar @action="handleToolbarAction" />
+    <EditorToolbar @action="handleToolbarAction" @code-block="handleCodeBlock" />
     <div ref="editorContainer" class="markdown-editor"></div>
   </div>
 </template>
@@ -165,7 +165,7 @@ function handleToolbarAction(action: ToolbarAction) {
         insert = `\`\`\`\n${selected}\n\`\`\``;
         cursorOffset = 4;
       } else {
-        insert = `\`\`${selected || '代码'}\`\``;
+        insert = `\`${selected || '代码'}\``;
         cursorOffset = selected ? insert.length : 2;
       }
       break;
@@ -206,6 +206,25 @@ function handleToolbarAction(action: ToolbarAction) {
     insert = '\n' + insert;
     cursorOffset += 1;
   }
+
+  view.dispatch({
+    changes: { from, to, insert },
+    selection: { anchor: from + cursorOffset },
+  });
+  view.focus();
+}
+
+/** 插入带语言标记的代码块 */
+function handleCodeBlock(language: string) {
+  const view = editorView.value;
+  if (!view) return;
+
+  const { from, to } = view.state.selection.main;
+  const selected = view.state.sliceDoc(from, to);
+
+  const fence = language ? `\`\`\`${language}` : '```';
+  const insert = `${fence}\n${selected || ''}\n\`\`\``;
+  const cursorOffset = fence.length + 1; // position cursor after the opening fence + newline
 
   view.dispatch({
     changes: { from, to, insert },

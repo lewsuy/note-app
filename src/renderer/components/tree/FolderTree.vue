@@ -15,7 +15,7 @@
       @node-drop="handleNodeDrop"
     >
       <template #default="{ node, data }">
-        <FolderTreeNode
+        <FolderTreeNodeComponent
           :node="node"
           :data="data"
           :is-current="folderStore.currentFolderId === data.id"

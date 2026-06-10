@@ -25,11 +25,32 @@
 
     <span class="toolbar-divider"></span>
 
-    <el-tooltip content="代码块" placement="bottom" :show-after="500">
-      <button class="toolbar-btn" @click="insert('code')">
+    <el-dropdown trigger="click" @command="handleCodeBlockCommand">
+      <button class="toolbar-btn code-block-btn">
         <el-icon><Tickets /></el-icon>
+        <el-icon class="code-block-arrow"><ArrowDown /></el-icon>
       </button>
-    </el-tooltip>
+      <template #dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item command="">代码块 (无语言)</el-dropdown-item>
+          <el-dropdown-item divided command="bash">Bash</el-dropdown-item>
+          <el-dropdown-item command="c">C</el-dropdown-item>
+          <el-dropdown-item command="cpp">C++</el-dropdown-item>
+          <el-dropdown-item command="css">CSS</el-dropdown-item>
+          <el-dropdown-item command="go">Go</el-dropdown-item>
+          <el-dropdown-item command="html">HTML</el-dropdown-item>
+          <el-dropdown-item command="java">Java</el-dropdown-item>
+          <el-dropdown-item command="javascript">JavaScript</el-dropdown-item>
+          <el-dropdown-item command="json">JSON</el-dropdown-item>
+          <el-dropdown-item command="python">Python</el-dropdown-item>
+          <el-dropdown-item command="rust">Rust</el-dropdown-item>
+          <el-dropdown-item command="sql">SQL</el-dropdown-item>
+          <el-dropdown-item command="typescript">TypeScript</el-dropdown-item>
+          <el-dropdown-item command="xml">XML</el-dropdown-item>
+          <el-dropdown-item command="yaml">YAML</el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
+    </el-dropdown>
     <el-tooltip content="链接" placement="bottom" :show-after="500">
       <button class="toolbar-btn" @click="insert('link')">
         <el-icon><Link /></el-icon>
@@ -75,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { Link, Picture, Tickets, Menu, Finished, Grid } from '@element-plus/icons-vue';
+import { Link, Picture, Tickets, Menu, Finished, Grid, ArrowDown } from '@element-plus/icons-vue';
 
 export type ToolbarAction =
   | 'bold' | 'italic'
@@ -86,10 +107,15 @@ export type ToolbarAction =
 
 const emit = defineEmits<{
   (e: 'action', action: ToolbarAction): void;
+  (e: 'code-block', language: string): void;
 }>();
 
 function insert(action: ToolbarAction) {
   emit('action', action);
+}
+
+function handleCodeBlockCommand(language: string) {
+  emit('code-block', language);
 }
 </script>
 
@@ -146,6 +172,17 @@ function insert(action: ToolbarAction) {
   font-size: 12px;
   font-weight: 600;
   font-family: 'JetBrains Mono', monospace;
+}
+
+.code-block-btn {
+  width: auto;
+  gap: 2px;
+  padding: 0 6px;
+}
+
+.code-block-arrow {
+  font-size: 10px;
+  margin-left: -2px;
 }
 
 .hr-icon {
