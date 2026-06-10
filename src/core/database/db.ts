@@ -2,7 +2,24 @@
 // SQLite connection management using sql.js (pure JavaScript, no native compilation)
 // Provides a compatibility layer matching the better-sqlite3 API
 
-import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+// Load sql.js by evaluating the file directly.
+// require() fails because Vite's CJS output wraps it in a way that
+// corrupts sql.js's emscripten UMD wrapper (module/exports become undefined).
+// Solution: read the file and eval it in the global context.
+function loadSqlJs(): typeof import('sql.js').default {
+  const sqlJsPath = path.join(__dirname, 'sql-wasm.js');
+  const code = fs.readFileSync(sqlJsPath, 'utf-8');
+  // sql-wasm.js uses __dirname, __filename, module, exports, require internally.
+  // We must provide all of them in the eval context.
+  const dir = __dirname;
+  const file = sqlJsPath;
+  const wrapper = new Function('module', 'exports', 'require', '__dirname', '__filename', code);
+  const m: any = { exports: {} };
+  wrapper(m, m.exports, require, dir, file);
+  return m.exports.default || m.exports;
+}
+const initSqlJs = loadSqlJs();
+type SqlJsDatabase = import('sql.js').Database;
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';

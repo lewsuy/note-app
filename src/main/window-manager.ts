@@ -16,6 +16,12 @@ let mainWindow: BrowserWindow | null = null;
  * 创建主窗口
  */
 export function createMainWindow(): BrowserWindow {
+  // In dev mode, preload is compiled to a separate directory by Electron Forge.
+  // In production (packaged), preload.js sits alongside main.js in .vite/build/.
+  const preloadPath = MAIN_WINDOW_VITE_DEV_SERVER_URL
+    ? path.join(__dirname, '../preload/index.js')
+    : path.join(__dirname, 'index.js');
+
   mainWindow = new BrowserWindow({
     width: DEFAULT_WINDOW_WIDTH,
     height: DEFAULT_WINDOW_HEIGHT,
@@ -24,7 +30,7 @@ export function createMainWindow(): BrowserWindow {
     title: 'Note App',
     show: false, // 等 ready-to-show 后再显示，避免白屏
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

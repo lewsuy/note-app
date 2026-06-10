@@ -11,17 +11,33 @@ export default defineConfig({
   },
   plugins: [
     {
-      name: 'copy-sql-wasm',
+      name: 'copy-sql-js',
       closeBundle() {
-        // Copy the sql.js WASM binary to the build output directory.
-        // sql.js uses __dirname at runtime to locate this file.
-        const wasmSrc = resolve(__dirname, 'node_modules/sql.js/dist/sql-wasm.wasm');
-        const wasmDest = resolve(__dirname, '.vite/build/sql-wasm.wasm');
+        const buildDir = resolve(__dirname, '.vite/build');
+
+        // Copy sql-wasm.wasm (WASM binary needed at runtime)
         try {
-          copyFileSync(wasmSrc, wasmDest);
-          console.log('[copy-sql-wasm] Copied sql-wasm.wasm to build output');
+          copyFileSync(
+            resolve(__dirname, 'node_modules/sql.js/dist/sql-wasm.wasm'),
+            resolve(buildDir, 'sql-wasm.wasm'),
+          );
+          console.log('[copy-sql-js] Copied sql-wasm.wasm');
         } catch (err) {
-          console.error('[copy-sql-wasm] Failed to copy sql-wasm.wasm:', err);
+          console.error('[copy-sql-js] Failed to copy sql-wasm.wasm:', err);
+        }
+
+        // Copy sql-wasm.js (the sql.js module itself, needed at runtime)
+        // We copy this because Rollup's CJS transformation corrupts the
+        // emscripten UMD wrapper, so we can't bundle it. Instead, we
+        // require() it by absolute path at runtime.
+        try {
+          copyFileSync(
+            resolve(__dirname, 'node_modules/sql.js/dist/sql-wasm.js'),
+            resolve(buildDir, 'sql-wasm.js'),
+          );
+          console.log('[copy-sql-js] Copied sql-wasm.js');
+        } catch (err) {
+          console.error('[copy-sql-js] Failed to copy sql-wasm.js:', err);
         }
       },
     },
@@ -42,6 +58,7 @@ export default defineConfig({
         'node:path',
         'node:os',
         'node:crypto',
+        'sql.js',
       ],
     },
   },
