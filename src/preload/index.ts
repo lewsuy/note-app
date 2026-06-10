@@ -166,7 +166,6 @@ const api = {
       'menu:new-folder',
       'menu:import',
       'menu:export',
-      'menu:view-mode',
       'menu:about',
     ];
     if (validChannels.includes(channel)) {

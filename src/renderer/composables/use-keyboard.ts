@@ -14,10 +14,6 @@ export interface KeyboardShortcutHandlers {
   onNewFolder?: () => void;
   /** Ctrl+Delete: 删除选中笔记 */
   onDeleteNote?: () => void;
-  /** Ctrl+E: 切换编辑/预览模式 */
-  onToggleEditPreview?: () => void;
-  /** Ctrl+Shift+E: 切换分栏模式 */
-  onToggleSplit?: () => void;
 }
 
 /**
@@ -66,19 +62,6 @@ export function useKeyboard(handlers: KeyboardShortcutHandlers): void {
       return;
     }
 
-    // Ctrl+E: 切换编辑/预览
-    if (e.key === 'e' && !shift) {
-      e.preventDefault();
-      handlers.onToggleEditPreview?.();
-      return;
-    }
-
-    // Ctrl+Shift+E: 切换分栏
-    if (e.key === 'E' && shift) {
-      e.preventDefault();
-      handlers.onToggleSplit?.();
-      return;
-    }
   }
 
   onMounted(() => {

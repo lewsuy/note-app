@@ -85,7 +85,7 @@ export interface AppSettings {
   lastOpenedNote: string | null;
   lastOpenedFolder: string | null;
   sidebarWidth: number;
-  editorPreviewMode: 'edit' | 'preview' | 'split';
+  // editorPreviewMode removed - single editor view
 }
 
 /** 创建笔记参数 */

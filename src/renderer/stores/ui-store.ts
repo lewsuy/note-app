@@ -5,7 +5,6 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { DEFAULT_SIDEBAR_WIDTH } from '../../shared/constants';
 
-export type EditorMode = 'edit' | 'preview' | 'split';
 export type ThemeMode = 'light' | 'dark';
 
 export const useUiStore = defineStore('ui', () => {
@@ -15,9 +14,6 @@ export const useUiStore = defineStore('ui', () => {
   const sidebarWidth = ref(DEFAULT_SIDEBAR_WIDTH);
 
   /** 编辑器视图模式 */
-  const viewMode = ref<EditorMode>('edit');
-
-  /** 主题 */
   const theme = ref<ThemeMode>('light');
 
   /** 侧边栏是否折叠 */
@@ -31,11 +27,6 @@ export const useUiStore = defineStore('ui', () => {
   /** 设置侧边栏宽度 */
   function setSidebarWidth(width: number): void {
     sidebarWidth.value = Math.max(180, Math.min(500, width));
-  }
-
-  /** 设置编辑器视图模式 */
-  function setViewMode(mode: EditorMode): void {
-    viewMode.value = mode;
   }
 
   /** 切换主题 */
@@ -57,13 +48,11 @@ export const useUiStore = defineStore('ui', () => {
   return {
     // state
     sidebarWidth,
-    viewMode,
     theme,
     sidebarCollapsed,
     showTagPanel,
     // actions
     setSidebarWidth,
-    setViewMode,
     setTheme,
     toggleSidebar,
     toggleTagPanel,

@@ -9,7 +9,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInput } from '@codemirror/language';
@@ -157,7 +157,10 @@ function createEditor(content: string): EditorView {
         ...defaultKeymap,
         ...searchKeymap,
         ...historyKeymap,
-        indentWithTab,
+        { key: 'Tab', run: (view) => {
+          view.dispatch(view.state.replaceSelection('    '));
+          return true;
+        }},
       ]),
       EditorView.lineWrapping,
     ],

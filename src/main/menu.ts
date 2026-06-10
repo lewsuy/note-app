@@ -77,27 +77,6 @@ export function buildMenu(): void {
     {
       label: '视图',
       submenu: [
-        {
-          label: '编辑模式',
-          accelerator: 'CmdOrCtrl+E',
-          click: () => {
-            BrowserWindow.getFocusedWindow()?.webContents.send('menu:view-mode', 'edit');
-          },
-        },
-        {
-          label: '预览模式',
-          click: () => {
-            BrowserWindow.getFocusedWindow()?.webContents.send('menu:view-mode', 'preview');
-          },
-        },
-        {
-          label: '分栏模式',
-          accelerator: 'CmdOrCtrl+Shift+E',
-          click: () => {
-            BrowserWindow.getFocusedWindow()?.webContents.send('menu:view-mode', 'split');
-          },
-        },
-        { type: 'separator' },
         { role: 'reload' },
         { role: 'forceReload' },
         { role: 'toggleDevTools' },

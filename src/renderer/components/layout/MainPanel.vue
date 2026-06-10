@@ -29,27 +29,13 @@
             <el-icon><Upload /></el-icon>
           </el-button>
         </el-tooltip>
-        <el-button-group size="small">
-          <el-button
-            :type="viewMode === 'edit' ? 'primary' : 'default'"
-            @click="uiStore.setViewMode('edit')"
-          >编辑</el-button>
-          <el-button
-            :type="viewMode === 'split' ? 'primary' : 'default'"
-            @click="uiStore.setViewMode('split')"
-          >分栏</el-button>
-          <el-button
-            :type="viewMode === 'preview' ? 'primary' : 'default'"
-            @click="uiStore.setViewMode('preview')"
-          >预览</el-button>
-        </el-button-group>
       </div>
     </div>
 
     <!-- 内容区域 -->
     <div class="content-area">
       <!-- 笔记列表（左侧） -->
-      <div class="note-list-panel" v-if="!noteStore.currentNote">
+      <div class="note-list-panel">
         <div class="note-list">
           <div
             v-for="note in (noteStore.notes as any[])"
@@ -80,9 +66,10 @@
       </div>
 
       <!-- 编辑器区域 -->
-      <div v-if="noteStore.currentNote" class="editor-area">
+      <div class="editor-area">
         <!-- 笔记标题 -->
         <div class="note-header">
+          <template v-if="noteStore.currentNote">
           <input
             class="note-title-input"
             v-model="noteTitle"
@@ -97,10 +84,12 @@
           <el-button size="small" text type="danger" @click="handleDeleteNote">
             <el-icon><Delete /></el-icon>
           </el-button>
+          </template>
+          <div v-else class="no-note-hint">请从左侧选择或新建笔记</div>
         </div>
 
         <!-- 标签输入区 -->
-        <div class="tag-bar" v-if="noteStore.currentNote">
+        <div class="tag-bar" v-if="noteStore.currentNote" key="tag-bar">
           <TagInput
             :note-id="noteStore.currentNote.id"
             :model-tags="noteStore.currentNote.tags || []"
@@ -109,34 +98,20 @@
         </div>
 
         <!-- 编辑/预览（含可拖拽分栏） -->
-        <div class="editor-body" :class="viewMode">
-          <div
-            v-if="viewMode !== 'preview'"
-            class="editor-pane"
-            :style="viewMode === 'split' ? { width: splitPercent + '%' } : {}"
-          >
+        <div class="editor-body">
+          <div class="editor-pane" v-if="noteStore.currentNote">
             <MarkdownEditor
               v-model="editorContent"
               @update:modelValue="handleContentChange"
             />
           </div>
-          <!-- 分栏拖拽条 -->
-          <div
-            v-if="viewMode === 'split'"
-            class="split-resizer"
-            @mousedown="onSplitResizeStart"
-          ></div>
-          <div
-            v-if="viewMode !== 'edit'"
-            class="preview-pane"
-            :style="viewMode === 'split' ? { width: (100 - splitPercent) + '%' } : {}"
-          >
-            <div class="markdown-preview" v-html="renderedHtml"></div>
+          <div v-else class="no-note-placeholder">
+            <el-empty description="选择一个笔记开始编辑" :image-size="100" />
           </div>
         </div>
 
         <!-- 状态栏 -->
-        <div class="status-bar">
+        <div class="status-bar" v-if="noteStore.currentNote">
           <span>字数: {{ noteStore.currentNote?.wordCount || 0 }}</span>
           <span>最后修改: {{ formatDate(noteStore.currentNote?.updatedAt || '') }}</span>
           <span v-if="isSaving" class="saving-indicator">保存中...</span>
@@ -176,17 +151,11 @@ import NoteContextMenu from '../editor/NoteContextMenu.vue';
 import type { NoteContextAction } from '../editor/NoteContextMenu.vue';
 import { useNoteStore } from '../../stores/note-store';
 import { useFolderStore } from '../../stores/folder-store';
-import { useUiStore } from '../../stores/ui-store';
 import { useTagStore } from '../../stores/tag-store';
 import { useKeyboard } from '../../composables/use-keyboard';
-import MarkdownIt from 'markdown-it';
-import hljs from 'highlight.js';
-import markdownItMark from 'markdown-it-mark';
-import '../../styles/markdown-theme.scss';
 
 const noteStore = useNoteStore();
 const folderStore = useFolderStore();
-const uiStore = useUiStore();
 const tagStore = useTagStore();
 
 const searchKeyword = ref('');
@@ -194,10 +163,8 @@ const searchInputRef = ref();
 const noteTitle = ref('');
 const editorContent = ref('');
 const isSaving = ref(false);
-const splitPercent = ref(50);
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-const viewMode = computed(() => uiStore.viewMode);
 const currentNoteId = computed(() => noteStore.currentNote?.id ?? '');
 
 // ─── 笔记右键菜单 ────────────────────────────────
@@ -273,60 +240,6 @@ async function exportNoteById(noteId: string) {
     ElMessage.error('导出失败');
   }
 }
-
-// ─── Markdown 渲染器 ─────────────────────────────
-
-const md = new MarkdownIt({
-  html: false,
-  linkify: true,
-  typographer: true,
-  highlight(str: string, lang: string) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(str, { language: lang }).value;
-      } catch {}
-    }
-    return '';
-  },
-});
-
-md.enable('table');
-md.enable('list');
-
-const defaultRender = md.renderer.rules.list_item_open || function(tokens, idx, options, env, self) {
-  return self.renderToken(tokens, idx, options);
-};
-
-md.renderer.rules.list_item_open = function (tokens, idx, options, env, self) {
-  const token = tokens[idx];
-  const nextToken = tokens[idx + 1];
-  if (nextToken && nextToken.children && nextToken.children.length > 0) {
-    const firstChild = nextToken.children[0];
-    if (firstChild && firstChild.type === 'html_inline' && firstChild.content.includes('checkbox')) {
-      token.attrSet('class', 'task-list-item');
-    }
-  }
-  return defaultRender(tokens, idx, options, env, self);
-};
-
-const defaultFence = md.renderer.rules.fence
-  ? md.renderer.rules.fence.bind(md.renderer.rules)
-  : function(tokens: any, idx: any, options: any, env: any, self: any) {
-      return self.renderToken(tokens, idx, options);
-    };
-md.renderer.rules.fence = function (tokens, idx, options, env, self) {
-  const token = tokens[idx];
-  const info = token.info.trim();
-  const langName = info.split(/\s+/g)[0] || '';
-  if (langName) {
-    token.attrSet('class', `language-${langName}`);
-  }
-  return defaultFence(tokens, idx, options, env, self);
-};
-
-const renderedHtml = computed(() => {
-  return md.render(editorContent.value);
-});
 
 // ─── 监听当前笔记变化 ─────────────────────────────
 
@@ -455,31 +368,6 @@ async function handleExportNote() {
   await exportNoteById(noteStore.currentNote.id);
 }
 
-// ─── 分栏拖拽 ────────────────────────────────────
-
-function onSplitResizeStart(e: MouseEvent) {
-  e.preventDefault();
-  const editorBody = (e.target as HTMLElement).closest('.editor-body');
-  if (!editorBody) return;
-
-  const rect = editorBody.getBoundingClientRect();
-  const startX = e.clientX;
-
-  const onMove = (ev: MouseEvent) => {
-    const delta = ev.clientX - startX;
-    const percent = ((ev.clientX - rect.left) / rect.width) * 100;
-    splitPercent.value = Math.max(20, Math.min(80, percent));
-  };
-
-  const onUp = () => {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  };
-
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-}
-
 // ─── 保存当前笔记（供快捷键调用） ────────────────
 
 async function handleSaveNow() {
@@ -512,13 +400,6 @@ useKeyboard({
     }
   },
   onDeleteNote: handleDeleteNote,
-  onToggleEditPreview: () => {
-    const current = uiStore.viewMode;
-    uiStore.setViewMode(current === 'edit' ? 'preview' : 'edit');
-  },
-  onToggleSplit: () => {
-    uiStore.setViewMode(uiStore.viewMode === 'split' ? 'edit' : 'split');
-  },
 });
 </script>
 
@@ -670,62 +551,25 @@ useKeyboard({
   flex: 1;
   display: flex;
   overflow: hidden;
-
-  &.edit .editor-pane {
-    flex: 1;
-  }
-
-  &.preview .preview-pane {
-    flex: 1;
-  }
-
-  &.split {
-    .editor-pane {
-      overflow: hidden;
-    }
-
-    .preview-pane {
-      overflow-y: auto;
-      border-left: none;
-    }
-  }
 }
 
-.split-resizer {
-  width: 4px;
-  cursor: col-resize;
-  background: transparent;
-  flex-shrink: 0;
-  transition: background 0.2s;
-  position: relative;
-
-  &:hover,
-  &:active {
-    background: var(--primary-color);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 2px;
-    height: 24px;
-    background: var(--text-tertiary);
-    border-radius: 1px;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  &:hover::after {
-    opacity: 0.5;
-  }
+.editor-pane {
+  flex: 1;
+  overflow: hidden;
 }
 
-.editor-pane,
-.preview-pane {
-  overflow-y: auto;
+.no-note-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-note-hint {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-tertiary);
+  text-align: center;
 }
 
 .status-bar {
